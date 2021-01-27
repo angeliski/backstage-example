@@ -1,0 +1,55 @@
+version: 2.1
+orbs:
+  gcp-gcr: carecloud/gcp-gcr@0.0.3
+
+aliases:
+  - &circleci_node
+    - image: circleci/node:12
+
+  - &save_node_modules_cache
+    name: Save node_modules cache
+    paths:
+      - node_modules
+      - packages/*/node_modules
+    key: yarn-deps-{{ checksum "yarn.lock" }}-{{ checksum ".circleci/config.yml" }}
+
+  - &restore_node_modules_cache
+    name: Restore node_modules cache
+    key: yarn-deps-{{ checksum "yarn.lock" }}-{{ checksum ".circleci/config.yml" }}
+
+  - &save_yarn_cache
+    name: Save yarnpkg cache
+    paths:
+      - ~/.cache/yarn
+      - ~/.npmrc
+    key: yarn-cache-{{ checksum ".circleci/config.yml" }}
+
+  - &restore_yarn_cache
+    name: Restore yarnpkg cache
+    key: yarn-cache-{{ checksum ".circleci/config.yml" }}
+
+jobs:
+  build-image:
+    docker:
+      - image: circleci/node:12-buster
+    steps:
+      - checkout
+      - restore_cache: *restore_yarn_cache
+      - restore_cache: *restore_node_modules_cache
+      - run: yarn install
+      - run: yarn tsc
+      - run: mkdir -p /tmp/artifacts
+      - run:
+          name: Build docker image
+          command: |
+            SHORT_GIT_HASH=$(echo $CIRCLE_SHA1 | cut -c -7)
+            yarn build-image
+      - save_cache: *save_node_modules_cache
+      - save_cache: *save_yarn_cache
+      - store_artifacts:
+          path: /tmp/artifacts
+          destination: artifacts
+workflows:
+  build:
+    jobs:
+      - build-image
