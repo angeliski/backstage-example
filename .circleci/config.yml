@@ -1,6 +1,4 @@
 version: 2.1
-orbs:
-  gcp-gcr: carecloud/gcp-gcr@0.0.3
 
 aliases:
   - &circleci_node
